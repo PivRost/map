@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий (встроенный GeoJSON)</title>
+    <title>Карта путешествий — финальная версия</title>
+    <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
+    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         #map {
@@ -42,8 +45,16 @@
             display: flex;
             align-items: center;
         }
-        .leaflet-control-attribution {
-            font-size: 8px;
+        /* Делаем подписи стран читаемыми */
+        .leaflet-tooltip {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            font-weight: bold;
+            color: #333;
+            text-shadow: 1px 1px 2px white;
+            font-size: 11px;
+            pointer-events: none; /* чтобы подписи не мешали кликам */
         }
     </style>
 </head>
@@ -94,95 +105,20 @@
         </div>
     </div>
 
+    <!-- Скрипты -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // Встроенные данные GeoJSON (упрощённые границы стран, Natural Earth 110m)
-        // Источник: https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson
-        const geoJsonData = {
-  "type": "FeatureCollection",
-  "features": [
-    {
-      "type": "Feature",
-      "properties": {
-        "scalerank": 1,
-        "featurecla": "Admin-0 country",
-        "labelrank": 6,
-        "sovereignt": "Russia",
-        "sov_a3": "RUS",
-        "adm0_dif": 0,
-        "level": 2,
-        "type": "Sovereign country",
-        "admin": "Russia",
-        "adm0_a3": "RUS",
-        "geou_dif": 0,
-        "geounit": "Russia",
-        "gu_a3": "RUS",
-        "su_dif": 0,
-        "subunit": "Russia",
-        "su_a3": "RUS",
-        "brk_diff": 0,
-        "name": "Russia",
-        "name_long": "Russian Federation",
-        "brk_a3": "RUS",
-        "brk_name": "Russia",
-        "brk_group": null,
-        "abbrev": "Rus.",
-        "postal": "RU",
-        "formal_en": "Russian Federation",
-        "formal_fr": null,
-        "note_adm0": null,
-        "note_brk": null,
-        "name_sort": "Russian Federation",
-        "name_alt": null,
-        "mapcolor7": 4,
-        "mapcolor8": 1,
-        "mapcolor9": 4,
-        "mapcolor13": 8,
-        "pop_est": 146000000,
-        "gdp_md_est": 3780000,
-        "pop_year": 2020,
-        "lastcensus": 2010,
-        "gdp_year": 2020,
-        "economy": "1. Developed region: G7",
-        "income_grp": "2. High income: OECD",
-        "wikipedia": -99,
-        "fips_10": "RS",
-        "iso_a2": "RU",
-        "iso_a3": "RUS",
-        "iso_n3": "643",
-        "un_a3": "643",
-        "wb_a2": "RU",
-        "wb_a3": "RUS",
-        "woe_id": -99,
-        "adm0_a3_is": "RUS",
-        "adm0_a3_us": "RUS",
-        "adm0_a3_un": -99,
-        "adm0_a3_wb": -99,
-        "continent": "Europe",
-        "region_un": "Europe",
-        "subregion": "Eastern Europe",
-        "region_wb": "Europe & Central Asia",
-        "name_len": 6,
-        "long_len": 18,
-        "abbrev_len": 4,
-        "tiny": -99,
-        "homepart": 1
-      },
-      "geometry": { "type": "MultiPolygon", "coordinates": [] } // здесь должны быть координаты, но для краткости опущено. В реальном файле они есть.
-    }
-    // ... остальные страны (очень много)
-  ]
-};
-        // В реальном файле здесь 1.5 МБ данных, для демонстрации я сократил, но в готовом проекте вы должны вставить полный GeoJSON.
-        // Если вы используете этот код, скачайте полный GeoJSON по ссылке и замените содержимое переменной geoJsonData.
+        // ==== Глобальные переменные ====
+        const map = L.map('map').setView([20, 0], 2);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap',
+            noWrap: true,
+            minZoom: 2,
+            maxZoom: 18
+        }).addTo(map);
 
-        // Поэтому предлагаю использовать CDN-версию GeoJSON, чтобы не вставлять огромный текст:
-        // Вместо geoJsonData выше, оставьте переменную пустой и загружайте через fetch, как раньше.
-        // Но для гарантии работы, я перепишу код на fetch с проверкой.
-
-        // Чтобы не было ошибки countryNames, объявим её до использования.
         const categoryColors = {
             'visited': '#4CAF50',
             'wish': '#FFC107',
@@ -190,13 +126,45 @@
             'never': '#F44336'
         };
 
+        // Хранилище отмеченных стран: { код страны: категория }
         let countriesData = JSON.parse(localStorage.getItem('leafletCountries')) || {};
-        let countryNames = {}; // <-- ЭТО ВАЖНО
 
-        function getCountryColor(code) {
-            return countriesData[code] ? categoryColors[countriesData[code]] : '#c0c0c0';
+        // Словарь названий стран (будет заполнен после загрузки GeoJSON)
+        let countryNames = {};
+
+        // Ссылка на слой GeoJSON (чтобы обновлять стили)
+        let geojsonLayer = null;
+
+        // Текущая выбранная страна для модального окна
+        let currentCountryCode = null;
+
+        // ==== Модальное окно ====
+        const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+
+        // Обработчики кнопок категорий
+        document.querySelectorAll('.category-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const category = btn.dataset.category;
+                if (currentCountryCode) {
+                    if (category) {
+                        countriesData[currentCountryCode] = category;
+                    } else {
+                        delete countriesData[currentCountryCode];
+                    }
+                    saveToStorage();
+                    updateUI();
+                    updateCountryColor(currentCountryCode, category);
+                }
+                modal.hide();
+            });
+        });
+
+        // ==== Функции работы с данными ====
+        function saveToStorage() {
+            localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
         }
 
+        // Обновление списка стран справа
         function updateUI() {
             const list = document.getElementById('country-list');
             const emptyMsg = document.getElementById('empty-message');
@@ -227,59 +195,29 @@
             document.getElementById('count').textContent = entries.length;
         }
 
-        function saveToStorage() {
-            localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
+        // Обновление цвета конкретной страны на карте
+        function updateCountryColor(code, category) {
+            if (!geojsonLayer) return;
+            geojsonLayer.eachLayer(layer => {
+                const layerCode = layer.feature.properties.ISO_A3 || layer.feature.properties.iso_a3 || layer.feature.properties.adm0_a3;
+                if (layerCode === code) {
+                    layer.setStyle({
+                        color: category ? categoryColors[category] : '#c0c0c0',
+                        weight: 1,
+                        fillOpacity: 0.5
+                    });
+                }
+            });
         }
 
-        // Инициализация карты
-        const map = L.map('map').setView([20, 0], 2);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap',
-            noWrap: true,
-            minZoom: 2,
-            maxZoom: 18
-        }).addTo(map);
-
-        let currentCountryCode = null;
-        const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
-
-        document.querySelectorAll('.category-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const category = btn.dataset.category;
-                if (currentCountryCode) {
-                    if (category) {
-                        countriesData[currentCountryCode] = category;
-                    } else {
-                        delete countriesData[currentCountryCode];
-                    }
-                    saveToStorage();
-                    updateUI();
-                    if (geojsonLayer) {
-                        geojsonLayer.eachLayer(layer => {
-                            const code = layer.feature.properties.ISO_A3 || layer.feature.properties.iso_a3 || layer.feature.properties.adm0_a3;
-                            if (code === currentCountryCode) {
-                                layer.setStyle({
-                                    color: category ? categoryColors[category] : '#c0c0c0',
-                                    weight: 1,
-                                    fillOpacity: 0.5
-                                });
-                            }
-                        });
-                    }
-                }
-                modal.hide();
-            });
-        });
-
-        let geojsonLayer;
-
-        // Загружаем GeoJSON с надёжного CDN
-        fetch('https://d2ad6b4ur7yvpq.cloudfront.net/naturalearth-3.3.0/ne_110m_admin_0_countries.geojson')
-            .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                return res.json();
+        // ==== Загрузка GeoJSON ====
+        fetch('countries.geojson')
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status} — файл не найден`);
+                return response.json();
             })
             .then(data => {
+                // Заполняем словарь названий стран
                 data.features.forEach(f => {
                     const props = f.properties;
                     const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
@@ -287,11 +225,12 @@
                     if (code) countryNames[code] = name;
                 });
 
+                // Создаём слой GeoJSON
                 geojsonLayer = L.geoJSON(data, {
                     style: (feature) => {
                         const code = feature.properties.ISO_A3 || feature.properties.iso_a3 || feature.properties.adm0_a3;
                         return {
-                            color: getCountryColor(code),
+                            color: countriesData[code] ? categoryColors[countriesData[code]] : '#c0c0c0',
                             weight: 1,
                             fillOpacity: 0.5
                         };
@@ -300,7 +239,11 @@
                         const props = feature.properties;
                         const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
                         const name = props.ADMIN || props.name || props.formal_en || code;
+
+                        // Добавляем постоянную подпись (название страны)
                         layer.bindTooltip(name, { permanent: true, direction: 'center' });
+
+                        // Обработчик клика
                         layer.on('click', () => {
                             if (!code) {
                                 alert('Не удалось определить код страны.');
@@ -313,18 +256,20 @@
                     }
                 }).addTo(map);
 
+                // После создания слоя обновляем список (теперь countryNames заполнен)
                 updateUI();
             })
-            .catch(err => {
-                console.error(err);
+            .catch(error => {
+                console.error('Ошибка загрузки GeoJSON:', error);
                 document.getElementById('empty-message').innerHTML = `
                     <div class="alert alert-danger">
-                        ❌ Не удалось загрузить границы стран.<br>
-                        Проверьте интернет или обновите страницу.
+                        ❌ Не удалось загрузить countries.geojson.<br>
+                        Убедитесь, что файл лежит в корневой папке репозитория.
                     </div>
                 `;
             });
 
+        // ==== Обработчики для списка стран ====
         document.getElementById('country-list').addEventListener('click', (e) => {
             const btn = e.target.closest('.remove-country');
             if (!btn) return;
@@ -332,14 +277,7 @@
             delete countriesData[code];
             saveToStorage();
             updateUI();
-            if (geojsonLayer) {
-                geojsonLayer.eachLayer(layer => {
-                    const layerCode = layer.feature.properties.ISO_A3 || layer.feature.properties.iso_a3 || layer.feature.properties.adm0_a3;
-                    if (layerCode === code) {
-                        layer.setStyle({ color: '#c0c0c0', weight: 1, fillOpacity: 0.1 });
-                    }
-                });
-            }
+            updateCountryColor(code, null);
         });
 
         document.getElementById('reset-btn').addEventListener('click', () => {
@@ -353,6 +291,7 @@
             }
         });
 
+        // Первоначальное обновление UI (пока countryNames пуст, но список может быть пуст)
         updateUI();
     </script>
 </body>
