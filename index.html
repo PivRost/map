@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий — без надписей</title>
+    <title>Карта путешествий — с поиском</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Bootstrap CSS -->
@@ -49,6 +49,10 @@
         .leaflet-control-attribution {
             display: none;
         }
+        /* Стили для поиска */
+        #search-input {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
@@ -71,7 +75,9 @@
                     <div class="legend-item"><span class="category-badge" style="background: #F44336;"></span> Вряд ли</div>
                 </div>
                 <h4>Отмеченные страны</h4>
-                <ul id="country-list" class="list-group country-list"></ul>
+                <!-- Поле поиска -->
+                <input type="text" id="search-input" class="form-control" placeholder="Поиск по названию...">
+                <ul id="country-list" class="list-group country-list mt-2"></ul>
                 <p id="empty-message" class="text-muted mt-3">Кликните по стране на карте</p>
             </div>
         </div>
@@ -105,7 +111,7 @@
     <script>
         const map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '', // можно оставить пустым, но надпись всё равно появляется, поэтому скрыли через CSS
+            attribution: '',
             noWrap: true,
             minZoom: 2,
             maxZoom: 18
@@ -146,6 +152,21 @@
             localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
         }
 
+        // Фильтрация списка по введённому тексту
+        function filterList() {
+            const searchText = document.getElementById('search-input').value.toLowerCase();
+            const items = document.querySelectorAll('#country-list .list-group-item');
+            items.forEach(item => {
+                const name = item.querySelector('span').innerText.trim().toLowerCase();
+                if (name.includes(searchText)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Обновление списка стран
         function updateUI() {
             const list = document.getElementById('country-list');
             const emptyMsg = document.getElementById('empty-message');
@@ -172,6 +193,8 @@
                     `;
                     list.appendChild(li);
                 });
+                // Применяем текущий фильтр после перестроения
+                filterList();
             }
             document.getElementById('count').textContent = entries.length;
         }
@@ -190,6 +213,7 @@
             });
         }
 
+        // Загрузка GeoJSON
         fetch('countries.geojson')
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP ${response.status} — файл не найден`);
@@ -241,6 +265,7 @@
                 `;
             });
 
+        // Удаление из списка
         document.getElementById('country-list').addEventListener('click', (e) => {
             const btn = e.target.closest('.remove-country');
             if (!btn) return;
@@ -261,6 +286,9 @@
                 });
             }
         });
+
+        // Слушатель на поле поиска
+        document.getElementById('search-input').addEventListener('input', filterList);
 
         updateUI();
     </script>
