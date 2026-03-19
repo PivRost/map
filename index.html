@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий — без названий на карте</title>
+    <title>Карта путешествий — без надписей</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Bootstrap CSS -->
@@ -45,6 +45,10 @@
             display: flex;
             align-items: center;
         }
+        /* Скрываем надпись Leaflet | © OpenStreetMap */
+        .leaflet-control-attribution {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -85,7 +89,6 @@
                     <div class="d-grid gap-2">
                         <button class="btn btn-success category-btn" data-category="visited">✅ Посетил</button>
                         <button class="btn btn-warning category-btn" data-category="wish">⭐ Хочу посетить</button>
-                        <!-- Кнопка "Жду визу" с классом category-btn -->
                         <button class="btn btn-warning category-btn" style="background-color: #FF9800; border-color: #FF9800; color: white;" data-category="visa">🛂 Жду визу</button>
                         <button class="btn btn-danger category-btn" data-category="never">🚫 Вряд ли посещу</button>
                         <button class="btn btn-secondary category-btn" data-category="">❌ Убрать метку</button>
@@ -100,10 +103,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        // ==== Глобальные переменные ====
         const map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap',
+            attribution: '', // можно оставить пустым, но надпись всё равно появляется, поэтому скрыли через CSS
             noWrap: true,
             minZoom: 2,
             maxZoom: 18
@@ -121,7 +123,6 @@
         let geojsonLayer = null;
         let currentCountryCode = null;
 
-        // ==== Модальное окно ====
         const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
 
         document.querySelectorAll('.category-btn').forEach(btn => {
@@ -141,7 +142,6 @@
             });
         });
 
-        // ==== Функции работы с данными ====
         function saveToStorage() {
             localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
         }
@@ -190,14 +190,12 @@
             });
         }
 
-        // ==== Загрузка GeoJSON ====
         fetch('countries.geojson')
             .then(response => {
                 if (!response.ok) throw new Error(`HTTP ${response.status} — файл не найден`);
                 return response.json();
             })
             .then(data => {
-                // Заполняем словарь названий стран (для списка справа)
                 data.features.forEach(f => {
                     const props = f.properties;
                     const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
@@ -205,7 +203,6 @@
                     if (code) countryNames[code] = name;
                 });
 
-                // Создаём слой GeoJSON (без постоянных подписей)
                 geojsonLayer = L.geoJSON(data, {
                     style: (feature) => {
                         const code = feature.properties.ISO_A3 || feature.properties.iso_a3 || feature.properties.adm0_a3;
@@ -220,9 +217,6 @@
                         const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
                         const name = props.ADMIN || props.name || props.formal_en || code;
 
-                        // УБРАЛИ ПОДПИСИ: layer.bindTooltip(...) удалён
-
-                        // Обработчик клика
                         layer.on('click', () => {
                             if (!code) {
                                 alert('Не удалось определить код страны.');
@@ -247,7 +241,6 @@
                 `;
             });
 
-        // ==== Обработчики для списка стран ====
         document.getElementById('country-list').addEventListener('click', (e) => {
             const btn = e.target.closest('.remove-country');
             if (!btn) return;
