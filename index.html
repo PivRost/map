@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий — финальная версия</title>
+    <title>Карта путешествий — без названий на карте</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <!-- Bootstrap CSS -->
@@ -45,17 +45,6 @@
             display: flex;
             align-items: center;
         }
-        /* Делаем подписи стран читаемыми */
-        .leaflet-tooltip {
-            background: transparent;
-            border: none;
-            box-shadow: none;
-            font-weight: bold;
-            color: #333;
-            text-shadow: 1px 1px 2px white;
-            font-size: 11px;
-            pointer-events: none; /* чтобы подписи не мешали кликам */
-        }
     </style>
 </head>
 <body>
@@ -96,7 +85,8 @@
                     <div class="d-grid gap-2">
                         <button class="btn btn-success category-btn" data-category="visited">✅ Посетил</button>
                         <button class="btn btn-warning category-btn" data-category="wish">⭐ Хочу посетить</button>
-                        <button class="btn" style="background-color: #FF9800; border-color: #FF9800; color: white;" data-category="visa">🛂 Жду визу</button>
+                        <!-- Кнопка "Жду визу" с классом category-btn -->
+                        <button class="btn btn-warning category-btn" style="background-color: #FF9800; border-color: #FF9800; color: white;" data-category="visa">🛂 Жду визу</button>
                         <button class="btn btn-danger category-btn" data-category="never">🚫 Вряд ли посещу</button>
                         <button class="btn btn-secondary category-btn" data-category="">❌ Убрать метку</button>
                     </div>
@@ -126,22 +116,14 @@
             'never': '#F44336'
         };
 
-        // Хранилище отмеченных стран: { код страны: категория }
         let countriesData = JSON.parse(localStorage.getItem('leafletCountries')) || {};
-
-        // Словарь названий стран (будет заполнен после загрузки GeoJSON)
         let countryNames = {};
-
-        // Ссылка на слой GeoJSON (чтобы обновлять стили)
         let geojsonLayer = null;
-
-        // Текущая выбранная страна для модального окна
         let currentCountryCode = null;
 
         // ==== Модальное окно ====
         const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
 
-        // Обработчики кнопок категорий
         document.querySelectorAll('.category-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const category = btn.dataset.category;
@@ -164,7 +146,6 @@
             localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
         }
 
-        // Обновление списка стран справа
         function updateUI() {
             const list = document.getElementById('country-list');
             const emptyMsg = document.getElementById('empty-message');
@@ -195,7 +176,6 @@
             document.getElementById('count').textContent = entries.length;
         }
 
-        // Обновление цвета конкретной страны на карте
         function updateCountryColor(code, category) {
             if (!geojsonLayer) return;
             geojsonLayer.eachLayer(layer => {
@@ -217,7 +197,7 @@
                 return response.json();
             })
             .then(data => {
-                // Заполняем словарь названий стран
+                // Заполняем словарь названий стран (для списка справа)
                 data.features.forEach(f => {
                     const props = f.properties;
                     const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
@@ -225,7 +205,7 @@
                     if (code) countryNames[code] = name;
                 });
 
-                // Создаём слой GeoJSON
+                // Создаём слой GeoJSON (без постоянных подписей)
                 geojsonLayer = L.geoJSON(data, {
                     style: (feature) => {
                         const code = feature.properties.ISO_A3 || feature.properties.iso_a3 || feature.properties.adm0_a3;
@@ -240,8 +220,7 @@
                         const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
                         const name = props.ADMIN || props.name || props.formal_en || code;
 
-                        // Добавляем постоянную подпись (название страны)
-                        layer.bindTooltip(name, { permanent: true, direction: 'center' });
+                        // УБРАЛИ ПОДПИСИ: layer.bindTooltip(...) удалён
 
                         // Обработчик клика
                         layer.on('click', () => {
@@ -256,7 +235,6 @@
                     }
                 }).addTo(map);
 
-                // После создания слоя обновляем список (теперь countryNames заполнен)
                 updateUI();
             })
             .catch(error => {
@@ -291,7 +269,6 @@
             }
         });
 
-        // Первоначальное обновление UI (пока countryNames пуст, но список может быть пуст)
         updateUI();
     </script>
 </body>
