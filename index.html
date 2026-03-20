@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий — с поиском стран</title>
-    <!-- Leaflet CSS -->
+    <title>Мои путешествия — карта стран</title>
+    <!-- Leaflet -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <!-- Плагин геокодера CSS -->
+    <!-- Поиск на карте -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
-    <!-- Bootstrap CSS -->
+    <!-- Bootstrap + иконки -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
-    <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         #map {
@@ -43,14 +42,9 @@
             margin-bottom: 10px;
             font-size: 0.9rem;
         }
-        .legend-item {
-            display: flex;
-            align-items: center;
-        }
         .leaflet-control-attribution {
             display: none;
         }
-        /* Стили для поиска */
         .leaflet-control-geocoder {
             border-radius: 4px;
             box-shadow: 0 1px 5px rgba(0,0,0,0.4);
@@ -64,7 +58,7 @@
             <div class="col-md-8">
                 <div id="map"></div>
                 <div class="d-flex justify-content-between mt-3">
-                    <button id="reset-btn" class="btn btn-danger">Сбросить все метки</button>
+                    <button id="reset-btn" class="btn btn-danger">Сбросить всё</button>
                     <span>Отмечено стран: <span id="count">0</span></span>
                 </div>
             </div>
@@ -78,24 +72,24 @@
                 </div>
                 <h4>Отмеченные страны</h4>
                 <ul id="country-list" class="list-group country-list"></ul>
-                <p id="empty-message" class="text-muted mt-3">Кликните по стране на карте</p>
+                <p id="empty-message" class="text-muted mt-3">Кликни по стране на карте</p>
             </div>
         </div>
     </div>
 
-    <!-- Модальное окно -->
+    <!-- Модалка -->
     <div class="modal fade" id="categoryModal" tabindex="-1">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Выберите категорию для <span id="modal-country-name"></span></h5>
+                    <h5 class="modal-title">Выбери категорию для <span id="modal-country-name"></span></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="d-grid gap-2">
                         <button class="btn btn-success category-btn" data-category="visited">✅ Посетил</button>
                         <button class="btn btn-warning category-btn" data-category="wish">⭐ Хочу посетить</button>
-                        <button class="btn btn-warning category-btn" style="background-color: #FF9800; border-color: #FF9800; color: white;" data-category="visa">🛂 Жду визу</button>
+                        <button class="btn btn-warning category-btn" style="background-color:#FF9800; border-color:#FF9800; color:#fff;" data-category="visa">🛂 Жду визу</button>
                         <button class="btn btn-danger category-btn" data-category="never">🚫 Вряд ли посещу</button>
                         <button class="btn btn-secondary category-btn" data-category="">❌ Убрать метку</button>
                     </div>
@@ -104,14 +98,13 @@
         </div>
     </div>
 
-    <!-- Скрипты -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Плагин геокодера -->
     <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
-        const map = L.map('map').setView([20, 0], 2);
+        // --- Карта ---
+        var map = L.map('map').setView([20, 0], 2);
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
             attribution: '',
             noWrap: true,
@@ -119,87 +112,83 @@
             maxZoom: 18
         }).addTo(map);
 
-        // ===== ДОБАВЛЯЕМ ПОИСК =====
-        // Создаём геокодер с настройками
-        const geocoder = L.Control.geocoder({
-            defaultMarkGeocode: false, // не ставить маркер автоматически
-            placeholder: 'Введите название страны или города...',
-            errorMessage: 'Ничего не найдено',
+        // --- Поиск мест (чтобы быстро найти страну) ---
+        var geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false,
+            placeholder: 'Поиск страны или города...',
+            errorMessage: 'Ничего не нашел',
             showResultIcons: true,
-            collapsed: false, // всегда развёрнут
-            expand: 'click'    // как разворачивать
+            collapsed: false
         }).addTo(map);
 
-        // Обрабатываем результат поиска
         geocoder.on('markgeocode', function(e) {
-            // e.geocode содержит результат
-            const bbox = e.geocode.bbox;
-            const center = e.geocode.center;
-            const name = e.geocode.name;
-            
-            // Если есть границы (bbox) — приближаем к ним
+            var bbox = e.geocode.bbox,
+                center = e.geocode.center,
+                name = e.geocode.name;
             if (bbox) {
-                const bounds = L.latLngBounds(bbox.getSouthWest(), bbox.getNorthEast());
-                map.fitBounds(bounds);
+                map.fitBounds(L.latLngBounds(bbox.getSouthWest(), bbox.getNorthEast()));
             } else {
-                // Иначе просто центрируем с зумом 6
                 map.setView(center, 6);
             }
-            
-            // Можно добавить временный маркер (опционально)
+            // временная метка
             L.marker(center).bindPopup(name).addTo(map);
         });
 
-        const categoryColors = {
+        // --- Цвета для категорий ---
+        var colors = {
             'visited': '#4CAF50',
             'wish': '#FFC107',
             'visa': '#FF9800',
             'never': '#F44336'
         };
 
-        let countriesData = JSON.parse(localStorage.getItem('leafletCountries')) || {};
-        let countryNames = {};
-        let geojsonLayer = null;
-        let currentCountryCode = null;
+        // --- Данные (localStorage) ---
+        var myCountries = JSON.parse(localStorage.getItem('travelMap')) || {};
+        var countryNames = {};   // заполнится из geojson
+        var geojsonLayer = null;
+        var currentCountry = null;
 
-        const modal = new bootstrap.Modal(document.getElementById('categoryModal'));
+        // --- Модалка ---
+        var modal = new bootstrap.Modal(document.getElementById('categoryModal'));
 
         document.querySelectorAll('.category-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const category = btn.dataset.category;
-                if (currentCountryCode) {
-                    if (category) {
-                        countriesData[currentCountryCode] = category;
+            btn.addEventListener('click', function() {
+                var cat = this.getAttribute('data-category');
+                if (currentCountry) {
+                    if (cat) {
+                        myCountries[currentCountry] = cat;
                     } else {
-                        delete countriesData[currentCountryCode];
+                        delete myCountries[currentCountry];
                     }
-                    saveToStorage();
-                    updateUI();
-                    updateCountryColor(currentCountryCode, category);
+                    saveData();
+                    refreshList();
+                    updateColorOnMap(currentCountry, cat);
                 }
                 modal.hide();
             });
         });
 
-        function saveToStorage() {
-            localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
+        // Сохранить
+        function saveData() {
+            localStorage.setItem('travelMap', JSON.stringify(myCountries));
         }
 
-        function updateUI() {
-            const list = document.getElementById('country-list');
-            const emptyMsg = document.getElementById('empty-message');
-            list.innerHTML = '';
-            const entries = Object.entries(countriesData);
+        // Обновить список справа
+        function refreshList() {
+            var listEl = document.getElementById('country-list');
+            var emptyMsg = document.getElementById('empty-message');
+            listEl.innerHTML = '';
+            var entries = Object.entries(myCountries);
             if (entries.length === 0) {
                 emptyMsg.style.display = 'block';
             } else {
                 emptyMsg.style.display = 'none';
                 entries.sort().forEach(([code, cat]) => {
-                    const name = countryNames[code] || code;
-                    const color = categoryColors[cat] || '#999';
-                    const li = document.createElement('li');
+                    var name = countryNames[code] || code;
+                    var color = colors[cat] || '#999';
+                    var li = document.createElement('li');
                     li.className = 'list-group-item';
-                    li.dataset.code = code;
+                    li.setAttribute('data-code', code);
                     li.innerHTML = `
                         <span>
                             <span class="category-badge" style="background: ${color};"></span>
@@ -209,19 +198,20 @@
                             <i class="fa-solid fa-trash-can"></i>
                         </button>
                     `;
-                    list.appendChild(li);
+                    listEl.appendChild(li);
                 });
             }
-            document.getElementById('count').textContent = entries.length;
+            document.getElementById('count').innerText = entries.length;
         }
 
-        function updateCountryColor(code, category) {
+        // Обновить цвет конкретной страны
+        function updateColorOnMap(code, cat) {
             if (!geojsonLayer) return;
-            geojsonLayer.eachLayer(layer => {
-                const layerCode = layer.feature.properties.ISO_A3 || layer.feature.properties.iso_a3 || layer.feature.properties.adm0_a3;
+            geojsonLayer.eachLayer(function(layer) {
+                var layerCode = layer.feature.properties.ISO_A3 || layer.feature.properties.iso_a3 || layer.feature.properties.adm0_a3;
                 if (layerCode === code) {
                     layer.setStyle({
-                        color: category ? categoryColors[category] : '#c0c0c0',
+                        color: cat ? colors[cat] : '#c0c0c0',
                         weight: 1,
                         fillOpacity: 0.5
                     });
@@ -229,81 +219,83 @@
             });
         }
 
-        // Загрузка GeoJSON
+        // Загрузка geojson
         fetch('countries.geojson')
-            .then(response => {
-                if (!response.ok) throw new Error(`HTTP ${response.status} — файл не найден`);
-                return response.json();
+            .then(res => {
+                if (!res.ok) throw new Error('Не нашел countries.geojson');
+                return res.json();
             })
             .then(data => {
+                // запомним названия
                 data.features.forEach(f => {
-                    const props = f.properties;
-                    const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
-                    const name = props.ADMIN || props.name || props.formal_en || code;
+                    var props = f.properties;
+                    var code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
+                    var name = props.ADMIN || props.name || props.formal_en || code;
                     if (code) countryNames[code] = name;
                 });
 
                 geojsonLayer = L.geoJSON(data, {
-                    style: (feature) => {
-                        const code = feature.properties.ISO_A3 || feature.properties.iso_a3 || feature.properties.adm0_a3;
+                    style: function(feature) {
+                        var code = feature.properties.ISO_A3 || feature.properties.iso_a3 || feature.properties.adm0_a3;
                         return {
-                            color: countriesData[code] ? categoryColors[countriesData[code]] : '#c0c0c0',
+                            color: myCountries[code] ? colors[myCountries[code]] : '#c0c0c0',
                             weight: 1,
                             fillOpacity: 0.5
                         };
                     },
-                    onEachFeature: (feature, layer) => {
-                        const props = feature.properties;
-                        const code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
-                        const name = props.ADMIN || props.name || props.formal_en || code;
+                    onEachFeature: function(feature, layer) {
+                        var props = feature.properties;
+                        var code = props.ISO_A3 || props.iso_a3 || props.adm0_a3;
+                        var name = props.ADMIN || props.name || props.formal_en || code;
 
-                        layer.on('click', () => {
+                        layer.on('click', function() {
                             if (!code) {
-                                alert('Не удалось определить код страны.');
+                                alert('Что-то не так с кодом страны');
                                 return;
                             }
-                            currentCountryCode = code;
-                            document.getElementById('modal-country-name').textContent = name;
+                            currentCountry = code;
+                            document.getElementById('modal-country-name').innerText = name;
                             modal.show();
                         });
                     }
                 }).addTo(map);
 
-                updateUI();
+                refreshList();
             })
-            .catch(error => {
-                console.error('Ошибка загрузки GeoJSON:', error);
+            .catch(err => {
+                console.error(err);
                 document.getElementById('empty-message').innerHTML = `
                     <div class="alert alert-danger">
-                        ❌ Не удалось загрузить countries.geojson.<br>
-                        Убедитесь, что файл лежит в корневой папке репозитория.
+                        ❌ Не загрузился countries.geojson.<br>
+                        Проверь, что файл лежит рядом.
                     </div>
                 `;
             });
 
         // Удаление из списка
-        document.getElementById('country-list').addEventListener('click', (e) => {
-            const btn = e.target.closest('.remove-country');
+        document.getElementById('country-list').addEventListener('click', function(e) {
+            var btn = e.target.closest('.remove-country');
             if (!btn) return;
-            const code = btn.dataset.code;
-            delete countriesData[code];
-            saveToStorage();
-            updateUI();
-            updateCountryColor(code, null);
+            var code = btn.getAttribute('data-code');
+            delete myCountries[code];
+            saveData();
+            refreshList();
+            updateColorOnMap(code, null);
         });
 
-        document.getElementById('reset-btn').addEventListener('click', () => {
-            countriesData = {};
-            saveToStorage();
-            updateUI();
+        // Сбросить всё
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            myCountries = {};
+            saveData();
+            refreshList();
             if (geojsonLayer) {
-                geojsonLayer.eachLayer(layer => {
+                geojsonLayer.eachLayer(function(layer) {
                     layer.setStyle({ color: '#c0c0c0', weight: 1, fillOpacity: 0.1 });
                 });
             }
         });
 
-        updateUI();
+        refreshList();
     </script>
 </body>
 </html>
