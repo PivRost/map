@@ -45,9 +45,8 @@
     Natural Earth Data — упрощённые границы стран (GeoJSON)
 
 📁 Структура проекта
-text
 
-travel-map/
+map/
 ├── index.html           # главный файл приложения
 ├── countries.geojson    # границы стран (GeoJSON)
 └── README.md            # этот файл
