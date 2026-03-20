@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Карта путешествий — с поиском</title>
+    <title>Карта путешествий — с поиском стран</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <!-- Плагин геокодера CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
     <!-- Bootstrap CSS -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css">
     <!-- Font Awesome -->
@@ -45,13 +47,13 @@
             display: flex;
             align-items: center;
         }
-        /* Скрываем надпись Leaflet | © OpenStreetMap */
         .leaflet-control-attribution {
             display: none;
         }
         /* Стили для поиска */
-        #search-input {
-            margin-bottom: 10px;
+        .leaflet-control-geocoder {
+            border-radius: 4px;
+            box-shadow: 0 1px 5px rgba(0,0,0,0.4);
         }
     </style>
 </head>
@@ -75,9 +77,7 @@
                     <div class="legend-item"><span class="category-badge" style="background: #F44336;"></span> Вряд ли</div>
                 </div>
                 <h4>Отмеченные страны</h4>
-                <!-- Поле поиска -->
-                <input type="text" id="search-input" class="form-control" placeholder="Поиск по названию...">
-                <ul id="country-list" class="list-group country-list mt-2"></ul>
+                <ul id="country-list" class="list-group country-list"></ul>
                 <p id="empty-message" class="text-muted mt-3">Кликните по стране на карте</p>
             </div>
         </div>
@@ -106,6 +106,8 @@
 
     <!-- Скрипты -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Плагин геокодера -->
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
 
     <script>
@@ -116,6 +118,37 @@
             minZoom: 2,
             maxZoom: 18
         }).addTo(map);
+
+        // ===== ДОБАВЛЯЕМ ПОИСК =====
+        // Создаём геокодер с настройками
+        const geocoder = L.Control.geocoder({
+            defaultMarkGeocode: false, // не ставить маркер автоматически
+            placeholder: 'Введите название страны или города...',
+            errorMessage: 'Ничего не найдено',
+            showResultIcons: true,
+            collapsed: false, // всегда развёрнут
+            expand: 'click'    // как разворачивать
+        }).addTo(map);
+
+        // Обрабатываем результат поиска
+        geocoder.on('markgeocode', function(e) {
+            // e.geocode содержит результат
+            const bbox = e.geocode.bbox;
+            const center = e.geocode.center;
+            const name = e.geocode.name;
+            
+            // Если есть границы (bbox) — приближаем к ним
+            if (bbox) {
+                const bounds = L.latLngBounds(bbox.getSouthWest(), bbox.getNorthEast());
+                map.fitBounds(bounds);
+            } else {
+                // Иначе просто центрируем с зумом 6
+                map.setView(center, 6);
+            }
+            
+            // Можно добавить временный маркер (опционально)
+            L.marker(center).bindPopup(name).addTo(map);
+        });
 
         const categoryColors = {
             'visited': '#4CAF50',
@@ -152,21 +185,6 @@
             localStorage.setItem('leafletCountries', JSON.stringify(countriesData));
         }
 
-        // Фильтрация списка по введённому тексту
-        function filterList() {
-            const searchText = document.getElementById('search-input').value.toLowerCase();
-            const items = document.querySelectorAll('#country-list .list-group-item');
-            items.forEach(item => {
-                const name = item.querySelector('span').innerText.trim().toLowerCase();
-                if (name.includes(searchText)) {
-                    item.style.display = '';
-                } else {
-                    item.style.display = 'none';
-                }
-            });
-        }
-
-        // Обновление списка стран
         function updateUI() {
             const list = document.getElementById('country-list');
             const emptyMsg = document.getElementById('empty-message');
@@ -193,8 +211,6 @@
                     `;
                     list.appendChild(li);
                 });
-                // Применяем текущий фильтр после перестроения
-                filterList();
             }
             document.getElementById('count').textContent = entries.length;
         }
@@ -286,9 +302,6 @@
                 });
             }
         });
-
-        // Слушатель на поле поиска
-        document.getElementById('search-input').addEventListener('input', filterList);
 
         updateUI();
     </script>
